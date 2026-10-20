@@ -1,0 +1,15 @@
+not json at all
+{"type":"user","message":{"content":"trunc
+null
+[]
+12
+""
+{"type":"user"}
+{"type":"assistant","message":{"content":"weird"}}
+{"type":"mystery","foo":1}
+{"isSidechain":false,"userType":"external","cwd":"/home/dev/shop","sessionId":"claude-malformed","version":"2.1.0","type":"user","timestamp":"2026-09-01T10:00:00.000Z","uuid":"u38","message":{"role":"user","content":"Add pagination to the orders list. Keep page size configurable."},"origin":{"kind":"human"}}
+{"isSidechain":false,"userType":"external","cwd":"/home/dev/shop","sessionId":"claude-malformed","version":"2.1.0","type":"user","timestamp":"2026-09-01T10:01:00.000Z","uuid":"u39","message":{"role":"user","content":"meta line"},"origin":{"kind":"human"},"isMeta":true}
+{"isSidechain":false,"userType":"external","cwd":"/home/dev/shop","sessionId":"claude-malformed","version":"2.1.0","type":"user","timestamp":"2026-09-01T10:01:00.000Z","uuid":"u40","message":{"role":"user","content":"<system-reminder>ignore me</system-reminder>"},"origin":{"kind":"human"}}
+{"isSidechain":false,"userType":"external","cwd":"/home/dev/shop","sessionId":"claude-malformed","version":"2.1.0","type":"assistant","timestamp":"2026-09-01T10:02:00.000Z","uuid":"a41","message":{"role":"assistant","content":[{"type":"tool_use","id":"m1","name":"Edit","input":{"input_is_missing":true}}]}}
+{"isSidechain":false,"userType":"external","cwd":"/home/dev/shop","sessionId":"claude-malformed","version":"2.1.0","type":"assistant","timestamp":"2026-09-01T10:03:00.000Z","uuid":"a42","message":{"role":"assistant","content":[{"type":"tool_use","id":"m2","name":"Bash","input":null}]}}
+{"isSidechain":false,"userType":"external","cwd":"/home/dev/shop","sessionId":"claude-malformed","version":"2.1.0","type":"user","timestamp":"2026-09-01T10:03:00.000Z","uuid":"r43","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"nope","content":5,"is_error":false}]}}

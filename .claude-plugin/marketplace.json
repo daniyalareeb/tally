@@ -1,0 +1,11 @@
+{
+  "name": "berelentless",
+  "owner": { "name": "BeRelentless" },
+  "plugins": [
+    {
+      "name": "tally",
+      "source": "./",
+      "description": "Get hired on how you actually build."
+    }
+  ]
+}
