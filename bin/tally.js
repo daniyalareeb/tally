@@ -46,8 +46,52 @@ function markDone(file) {
   store.writeJson(doneFile(), d);
 }
 
-function flush() {
+async function flush() {
   for (const e of store.queueTake()) { try { processFile(e.path); } catch {} }
+  await upload();
+}
+
+const config = () => store.readJson(store.p('config.json'), null);
+const baseUrl = () => process.env.TALLY_URL || (config() && config().url) || 'http://localhost:3000';
+
+// Delete an outbox file only once the server has it (201, repeat) or will never take it (400, 413).
+async function upload() {
+  const cfg = config();
+  if (!cfg || !cfg.token) return;
+  for (const f of fs.existsSync(store.p('outbox')) ? fs.readdirSync(store.p('outbox')).filter((n) => n.endsWith('.json')) : []) {
+    const file = store.p('outbox', f);
+    let res;
+    try {
+      res = await fetch(baseUrl() + '/api/ingest', { method: 'POST', headers: { authorization: 'Bearer ' + cfg.token, 'content-type': 'application/json' }, body: fs.readFileSync(file) });
+    } catch { return; }
+    if (res.ok || res.status === 400 || res.status === 413) fs.unlinkSync(file);
+    else if (res.status === 401 || res.status === 429) return;
+  }
+}
+
+async function login() {
+  const crypto = require('crypto');
+  const token = 'tly_' + crypto.randomBytes(24).toString('hex');
+  const hash = store.sha(token);
+  const code = Array.from(crypto.randomBytes(8), (b) => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[b % 32]).join('');
+  const base = baseUrl();
+  const res = await fetch(base + '/api/device/start', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ code, token_hash: hash }) }).catch(() => null);
+  if (!res || !res.ok) fail('Could not reach ' + base + '. Check TALLY_URL and try again.');
+  const url = `${base}/connect?code=${code}`;
+  out(`Your code is ${code}\nOpen ${url} to sign in with GitHub and confirm.`);
+  const opener = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'explorer' : 'xdg-open';
+  try { cp.spawn(opener, [url], { detached: true, stdio: 'ignore' }).on('error', () => {}).unref(); } catch {}
+  const wait = Number(process.env.TALLY_POLL_MS) || 2000;
+  for (let i = 0; i < 600000 / wait; i++) {
+    await new Promise((r) => setTimeout(r, wait));
+    const s = await fetch(`${base}/api/device/status?h=${hash}`).then((r) => r.json()).catch(() => ({}));
+    if (s.confirmed) {
+      store.writeJson(store.p('config.json'), { token, url: base });
+      fs.chmodSync(store.p('config.json'), 0o600);
+      return out('Connected. Run "tally preview" to see what the next upload contains.');
+    }
+  }
+  fail('Timed out waiting for confirmation. Run tally login again.');
 }
 
 function transcripts() {
@@ -164,7 +208,7 @@ const table = {
   profile: () => profile(args),
   project: () => project(args),
   install: () => (args[0] === 'codex' ? installCodex() : fail('usage: tally install codex')),
-  login: () => out('Login is coming in Phase 2.'),
+  login,
 };
 
 if (!table[cmd]) fail('usage: tally hook | flush | sync | card | preview | pause | track | profile | project | install codex | login');

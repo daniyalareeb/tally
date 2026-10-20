@@ -36,3 +36,9 @@ test('codex: prompts come from user_message, patches become Edit, exit codes set
   assert.equal(bad.length, 2);
   assert.equal(kinds(parseCodex(fx('codex-errloop.jsonl'))).filter((k) => k === 'interrupt').length, 1);
 });
+
+test('codex real (0.154): prompt arrives as item_completed UserMessage', () => {
+  const r = parseCodex(fx('codex-real-prompt.jsonl'));
+  assert.equal(r.meta.sessionId, '01a15ade-2dc5-7800-b1de-dbc54faf8f51');
+  assert.deepEqual(r.events.filter((e) => e.kind === 'user_prompt').map((e) => e.text), ['say hi']);
+});

@@ -48,3 +48,18 @@ test('card is 3 to 5 lines under the mascot', () => {
     assert.ok(lines.length - 2 >= 3 && lines.length - 2 <= 5, lines.join('\n'));
   }
 });
+
+test('digest adds first-commit minutes and counts redaction hits across all prompts', () => {
+  const events = [{ t: 0, kind: 'user_prompt', text: 'use sk-proj-abcdefghijklmnopqrstuvwx1234 and ghp_abcdefghijklmnopqrstuvwxyz0123456789' }];
+  for (let i = 1; i < 15; i++) events.push({ t: i, kind: 'user_prompt', text: i === 14 ? 'Bearer abcDEF1234567890xyz' : 'ok' });
+  const d = buildDigest({ meta: { tool: 'claude-code', sessionId: 's' }, events }, { first_commit_ms: 7 * 60000 });
+  assert.equal(d.stats.min_to_first_commit, 7);
+  assert.equal(d.stats.redaction_hits, 3);
+  assert.equal(buildDigest({ meta: { tool: 'claude-code', sessionId: 's' }, events }, {}).stats.min_to_first_commit, null);
+});
+
+test('the repo folder name is scrubbed from prompts', () => {
+  const events = [{ t: 0, kind: 'user_prompt', text: 'Repo: CompanyOS, fix it. companyos too' }];
+  const d = buildDigest({ meta: { tool: 'claude-code', sessionId: 's', cwd: '/home/dev/CompanyOS' }, events }, {});
+  assert.equal(d.prompts[0].text, 'Repo: [repo], fix it. [repo] too');
+});
