@@ -14,6 +14,7 @@ const PROJECT_KEYS = ['kind', 'my_role', 'status', 'outcome', 'team_size', 'shar
 const LIST_KEYS = new Set(['overlap_zones', 'work_auth', 'role_types', 'stage', 'want_stack', 'avoid_stack', 'domains']);
 const NUM_KEYS = new Set(['salary_min', 'overlap_hours']);
 const SYNC_DAYS = 7;
+const BACKFILL_DAYS = 30;
 
 function hook() {
   if (store.isPaused()) return;
@@ -52,7 +53,7 @@ async function flush() {
 }
 
 const config = () => store.readJson(store.p('config.json'), null);
-const baseUrl = () => process.env.TALLY_URL || (config() && config().url) || 'http://localhost:3000';
+const baseUrl = () => process.env.TALLY_URL || (config() && config().url) || 'https://berelentless.dev';
 
 // Delete an outbox file only once the server has it (201, repeat) or will never take it (400, 413).
 async function upload() {
@@ -110,14 +111,49 @@ function transcripts() {
   return found;
 }
 
-function sync() {
+const backfillMarker = () => store.p('backfilled');
+const backfillPending = () => !!(config() && config().token) && !fs.existsSync(backfillMarker());
+
+function recentFiles(days) {
   const now = Date.now();
-  for (const f of transcripts()) {
+  return transcripts().filter((f) => {
     let m;
-    try { m = fs.statSync(f).mtimeMs; } catch { continue; }
-    if (now - m > SYNC_DAYS * 864e5 || now - m < 120000 || isDone(f)) continue;
+    try { m = fs.statSync(f).mtimeMs; } catch { return false; }
+    return now - m <= days * 864e5 && now - m >= 120000 && !isDone(f);
+  });
+}
+
+// Past sessions a first upload would send: tracked, not ignored, not yet counted.
+function backfillPlan() {
+  if (store.isPaused()) return [];
+  const { fromFile } = require('../lib/digest');
+  const items = [];
+  for (const f of recentFiles(BACKFILL_DAYS)) {
+    try {
+      const { digest, cwd, repoName } = fromFile(f);
+      if (digest.turns && !store.isIgnored(cwd) && store.isTracked(digest.repo_hash)) items.push({ digest, repoName });
+    } catch {}
+  }
+  return items;
+}
+
+async function sync() {
+  if (!config()) out('Not connected yet, so nothing uploads. Run "tally login" to connect.');
+  const first = backfillPending();
+  if (first && !args.includes('--yes')) {
+    const items = backfillPlan();
+    if (!items.length) return out('No past sessions in tracked repos yet. Track a repo, then run tally sync again.');
+    const perRepo = {};
+    for (const i of items) perRepo[i.repoName] = (perRepo[i.repoName] || 0) + 1;
+    out(`Tally can count ${items.length} past session${items.length === 1 ? '' : 's'} from the last ${BACKFILL_DAYS} days:\n` +
+      Object.entries(perRepo).map(([r, n]) => `  ${r}: ${n}`).join('\n') +
+      '\nRun "tally preview" to see exactly what would be sent, then "tally sync --yes" to upload it.');
+    return;
+  }
+  for (const f of recentFiles(first ? BACKFILL_DAYS : SYNC_DAYS)) {
     try { processFile(f); } catch {}
   }
+  if (first) { store.writeJson(backfillMarker(), { at: Date.now() }); await upload(); }
 }
 
 function showCard(file) {
@@ -132,7 +168,7 @@ function showCard(file) {
 
 function preview(file) {
   if (file) return out(JSON.stringify(require('../lib/digest').fromFile(file).digest, null, 2));
-  const pending = store.readOutbox();
+  const pending = [...store.readOutbox(), ...(backfillPending() ? backfillPlan().map((i) => i.digest) : [])];
   out(pending.length ? JSON.stringify(pending, null, 2) : 'Nothing waiting to upload.');
 }
 
@@ -211,5 +247,9 @@ const table = {
   login,
 };
 
+if (!cmd) {
+  out(' ╻╻╻\n(•ᴗ•)  Hi, I am Tally.\n\n  tally login     connect this machine\n  tally track     count sessions in this repo\n  tally card      what I counted last\n  tally preview   exactly what would be uploaded\n  tally pause     stop counting (tally pause off to resume)\n\nIn Claude Code, /tally does all of this for you.');
+  process.exit(0);
+}
 if (!table[cmd]) fail('usage: tally hook | flush | sync | card | preview | pause | track | profile | project | install codex | login');
 table[cmd]();

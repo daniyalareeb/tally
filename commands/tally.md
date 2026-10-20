@@ -1,5 +1,5 @@
 ---
-description: Tally, your work profile. Run "setup" once after install, "track" in each project, or no argument for your card.
+description: Tally, your work profile. Run with no argument to start (or see your card), "track" in each project.
 argument-hint: setup | track | preview | pause
 allowed-tools: Bash(tally:*), AskUserQuestion
 ---
@@ -15,7 +15,9 @@ Argument: `$ARGUMENTS`
 
 ## If the argument is empty
 
-Run `tally card` and show its output unchanged. If `tally` is not installed or not logged in, say so in one line and tell them to run `tally login`.
+Run `tally profile get`. If it prints `(empty)`, this is a first run: say hi in one line and follow the `setup` steps below.
+
+Otherwise run `tally card` and show its output unchanged. If `tally project get` says `not tracked`, add one line: "This repo is not counted yet. Run /tally track to count it."
 
 ## If the argument is `setup`
 
@@ -36,13 +38,17 @@ Use AskUserQuestion, one question per call, in this order. Offer 2-4 sensible op
 11. `domains`: "Any problem areas you care about?" (e.g. fintech, health, dev tools, climate, education, AI agents; free text)
 12. `dealbreakers`: "Anything that would make you say no straight away?" (free text, optional)
 
-End with: show `tally profile get` as a short list, say what founders can and cannot see (first name and last initial, city, score and habits; never full name, contact, employer or raw prompts until they accept an intro), and tell them to run `/tally track` inside each project they want counted. Mood: happy.
+End with: show `tally profile get` as a short list, say what founders can and cannot see (first name and last initial, city, score and habits; never full name, contact, employer or raw prompts until they accept an intro).
+
+Then ask: "Count sessions in this project?" (Yes / No, not this one). On yes, run `tally track` and follow the `track` steps below.
+
+Last, if `~/.tally/config.json` does not exist, say "Last step: connect your GitHub so founders can verify your work. A browser tab will open." and run `tally login` with a 600000 ms timeout. Show the code it prints. When it says Connected, tell them sessions now count on their own, and to run /tally track in each other project they want counted. Mood: happy.
 
 ## If the argument is `track`
 
 You are inside one project. Run `tally project get` for the current repo. If it is already tracked, show the saved project card and ask only whether anything changed.
 
-Otherwise say one line: "Tracking is per project. Nothing from this repo is uploaded until you finish this." Then ask with AskUserQuestion, one at a time, saving each with `tally project set <key> <value>`:
+Otherwise run `tally track`, say one line: "Tracking is per project. Nothing from this repo is uploaded until you finish this." Then ask with AskUserQuestion, one at a time, saving each with `tally project set <key> <value>`:
 
 1. `kind`: "What is this?" (Personal project / Open source / Work for an employer / Client work / Study or experiment)
 2. `my_role`: "What is your part?" (Solo, I built it / Lead, I make the decisions / Contributor on a team / Maintainer)
