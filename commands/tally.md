@@ -23,7 +23,11 @@ Otherwise run `tally card` and show its output unchanged. If `tally project get`
 
 First run `tally profile get`. Skip any question whose answer already exists. Tell them once, in your own words: "I never read your code. I only see your prompts (with secrets removed) and counts. Run /tally preview any time to see exactly what I send. Every question is skippable."
 
-Use AskUserQuestion, one question per call, in this order. Offer 2-4 sensible options and let them pick Other. After each answer, run `tally profile set <key> <value>` before asking the next.
+Do these in order, so quitting early still leaves them counted:
+
+A. If `~/.tally/config.json` does not exist, say "First, connect your GitHub so founders can verify your work. A browser tab will open." and run `tally login` with a 600000 ms timeout. Show the code it prints. When it says Connected, say sessions can now count.
+B. Run `tally track` for this repo and follow the `track` steps below. If they say no to tracking, skip it.
+C. Say: "Last part, optional. These answers make founders' filters work. Skip any." Then use AskUserQuestion, one question per call, in this order. Offer 2-4 sensible options and let them pick Other. After each answer, run `tally profile set <key> <value>` before asking the next.
 
 1. `open_to_work`: "Are you open to being found by founders?" (Yes, now / Soon, in 1-3 months / Not now, just building my profile)
 2. `location`: "Which city and country are you in?" (free text via Other; also set `timezone` from it, confirm only if unsure)
@@ -40,9 +44,7 @@ Use AskUserQuestion, one question per call, in this order. Offer 2-4 sensible op
 
 End with: show `tally profile get` as a short list, say what founders can and cannot see (first name and last initial, city, score and habits; never full name, contact, employer or raw prompts until they accept an intro).
 
-Then ask: "Count sessions in this project?" (Yes / No, not this one). On yes, run `tally track` and follow the `track` steps below.
-
-Last, if `~/.tally/config.json` does not exist, say "Last step: connect your GitHub so founders can verify your work. A browser tab will open." and run `tally login` with a 600000 ms timeout. Show the code it prints. When it says Connected, tell them sessions now count on their own, and to run /tally track in each other project they want counted. Mood: happy.
+End by telling them to run /tally track in each other project they want counted, and that /tally shows their latest card. Mood: happy.
 
 ## If the argument is `track`
 

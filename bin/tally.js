@@ -33,7 +33,11 @@ function processFile(file) {
   if (!digest.turns) return;
   if (store.isPaused()) return note('skipped', 'Tally is paused.');
   if (store.isIgnored(cwd)) { markDone(file); return note('skipped', 'this repo has a .tallyignore.'); }
-  if (!store.isTracked(digest.repo_hash)) return note('skipped', 'this repo is not tracked yet. Run /tally track here.');
+  if (!store.isTracked(digest.repo_hash)) {
+    const k = store.p('untracked.json');
+    store.writeJson(k, { ...store.readJson(k, {}), [store.sha(file)]: Date.now() });
+    return note('skipped', 'this repo is not tracked yet. Run /tally track here.');
+  }
   store.writeJson(store.outboxFile(digest.session_id), digest);
   markDone(file);
   store.writeJson(store.p('last.json'), { status: 'counted', session_id: digest.session_id, card: card(digest, repoName), at: Date.now() });
@@ -59,15 +63,32 @@ const baseUrl = () => process.env.TALLY_URL || (config() && config().url) || 'ht
 async function upload() {
   const cfg = config();
   if (!cfg || !cfg.token) return;
+  const status = (v) => store.writeJson(store.p('upload.json'), { status: v, at: Date.now() });
+  let failed = null;
   for (const f of fs.existsSync(store.p('outbox')) ? fs.readdirSync(store.p('outbox')).filter((n) => n.endsWith('.json')) : []) {
     const file = store.p('outbox', f);
     let res;
     try {
       res = await fetch(baseUrl() + '/api/ingest', { method: 'POST', headers: { authorization: 'Bearer ' + cfg.token, 'content-type': 'application/json' }, body: fs.readFileSync(file) });
-    } catch { return; }
+    } catch { return status('network'); }
     if (res.ok || res.status === 400 || res.status === 413) fs.unlinkSync(file);
-    else if (res.status === 401 || res.status === 429) return;
+    else if (res.status === 401 || res.status === 429) return status(res.status);
+    else failed = res.status;
   }
+  status(failed || 'ok');
+}
+
+// Lines under the card for things that would otherwise fail silently.
+function notices() {
+  const lines = [];
+  const waiting = store.readOutbox().length;
+  const up = store.readJson(store.p('upload.json'), {}).status;
+  if (up === 401) lines.push('Sign-in expired. Run tally login again.');
+  else if (up === 429) lines.push('Daily upload limit reached. Waiting sessions upload tomorrow.');
+  else if (waiting && up && up !== 'ok') lines.push(`${waiting} waiting to upload. Tally will retry after your next session.`);
+  const skipped = Object.keys(store.readJson(store.p('untracked.json'), {})).length;
+  if (skipped) lines.push(`${skipped} ${skipped === 1 ? 'session' : 'sessions'} skipped in repos you have not tracked. Run /tally track in each repo you want counted.`);
+  return lines.length ? '\n\n' + lines.join('\n') : '';
 }
 
 async function login() {
@@ -160,10 +181,11 @@ function showCard(file) {
   const { fromFile } = require('../lib/digest');
   const { card } = require('../lib/card');
   if (file) { const r = fromFile(file); return out(card(r.digest, r.repoName)); }
+  const extra = notices();
   const last = store.readJson(store.p('last.json'), null);
-  if (!last) return out(' ╻╻╻\n(•ᴗ•)  No sessions yet. Finish a session in a tracked repo and I will count it.');
+  if (!last) return out(' ╻╻╻\n(•ᴗ•)  No sessions yet. Finish a session in a tracked repo and I will count it.' + extra);
   const { skippedCard } = require('../lib/card');
-  out(last.status === 'counted' ? last.card : skippedCard(last.why));
+  out((last.status === 'counted' ? last.card : skippedCard(last.why)) + extra);
 }
 
 function preview(file) {

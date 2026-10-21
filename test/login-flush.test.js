@@ -68,3 +68,16 @@ test('flush without login uploads nothing and keeps the outbox', async () => {
   await run(['flush'], { TALLY_HOME: home });
   assert.ok(fs.existsSync(path.join(home, 'outbox', 's1.json')));
 });
+
+test('card says so when uploads are failing or repos are skipped', async () => {
+  const home = tmp();
+  fs.mkdirSync(path.join(home, 'outbox'), { recursive: true });
+  fs.writeFileSync(path.join(home, 'outbox', 'a.json'), '{}');
+  fs.writeFileSync(path.join(home, 'upload.json'), JSON.stringify({ status: 'network' }));
+  fs.writeFileSync(path.join(home, 'untracked.json'), JSON.stringify({ x: 1, y: 2 }));
+  const r = await run(['card'], { TALLY_HOME: home });
+  assert.match(r.out, /1 waiting to upload/);
+  assert.match(r.out, /2 sessions skipped in repos you have not tracked/);
+  fs.writeFileSync(path.join(home, 'upload.json'), JSON.stringify({ status: 401 }));
+  assert.match((await run(['card'], { TALLY_HOME: home })).out, /Run tally login again/);
+});
