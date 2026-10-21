@@ -57,7 +57,7 @@ async function flush() {
 }
 
 const config = () => store.readJson(store.p('config.json'), null);
-const baseUrl = () => process.env.TALLY_URL || (config() && config().url) || 'https://berelentless.dev';
+const baseUrl = () => process.env.TALLY_URL || (config() && config().url) || 'https://www.berelentless.dev';
 
 // Delete an outbox file only once the server has it (201, repeat) or will never take it (400, 413).
 async function upload() {
