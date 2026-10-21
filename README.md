@@ -7,7 +7,7 @@ Get hired on how you actually build. Tally keeps a tally of how you work with Cl
 In Claude Code:
 
 ```
-/plugin marketplace add berelentless/tally
+/plugin marketplace add daniyalareeb/tally
 /plugin install tally@berelentless
 /tally
 ```
